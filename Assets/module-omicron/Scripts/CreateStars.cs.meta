@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 4bf54765c01e2437faf8ba725ad7d972
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - starDataFile: {fileID: 4900000, guid: 3b1c96b9202f943baa0638bc1837a737, type: 3}
+  - constellationDataFile: {fileID: 4900000, guid: bfdc09af954d54e1c8b00d1e72f0d868,
+      type: 3}
+  - starPrefab: {fileID: 7794078767480645447, guid: 94a68724cf7d3461389db466dd39e65e,
+      type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
