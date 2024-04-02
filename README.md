@@ -18,4 +18,3 @@ If you are cloning using Git, remember to remember to use the recursive flag:
 Alternatively when available, you can use one of the zipped release files.
 
 CAVE2 is a trademark of the University of Illinois Board of Trustees
-# cs528-shiningstar-project
