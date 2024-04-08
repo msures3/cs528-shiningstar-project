@@ -40,16 +40,22 @@ public class HoverOverIndicator : CAVE2Interactable
     Vector3 highlightScaler = new Vector3(1.05f, 1.05f, 1.05f);
 
     [SerializeField]
-    Mesh defaultMesh;
+    bool useSimplifiedMesh = false;
 
     [SerializeField]
-    Material hoverOverMaterial;
+    Mesh defaultMesh = null;
+
+    [SerializeField]
+    Mesh simpleMesh = null;
+
+    [SerializeField]
+    Material hoverOverMaterial = null;
 
     GameObject hoverOverHighlight;
     new MeshRenderer renderer;
 
     [SerializeField]
-    bool strobing;
+    bool strobing = false;
 
     [SerializeField]
     float strobeSpeed;
@@ -72,6 +78,11 @@ public class HoverOverIndicator : CAVE2Interactable
         {
             defaultMesh = GetComponent<MeshFilter>().mesh;
         }
+        if (useSimplifiedMesh)
+        {
+            defaultMesh = simpleMesh;
+        }
+
         hoverOverHighlight.AddComponent<MeshFilter>().mesh = defaultMesh;
         renderer = hoverOverHighlight.AddComponent<MeshRenderer>();
 

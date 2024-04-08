@@ -48,11 +48,12 @@ public class CreateStars : MonoBehaviour
 
     public List<TextAsset> constellationFiles = new List<TextAsset>();
     public TextAsset exoplanetDataFile; // Exoplanet Data
-    
+
     public GameObject starPrefab;
     public static GameObject constellationSet;
     public List<ConstellationLine> constellationLines = new List<ConstellationLine>();
-    public GameObject constellationToggle;
+    public GameObject canvas;
+    // public GameObject constellationToggle;
 
 
     // Storing Values
@@ -62,16 +63,23 @@ public class CreateStars : MonoBehaviour
     private Dictionary<int, Color> originalStarColors = new Dictionary<int, Color>();  // Star colors, original HIP with color
     public bool colorChanged = false;
     public GameObject camera_CAVE;
+    public GameObject menu_CAVE;
+    public static Vector3 initialMenuPosition;
+    public static Quaternion initialMenuRotation;
     public static Vector3 initialUserPosition;
     public static Quaternion initialUserRotation;
+
+    public GameObject[] movementToggle;
     public int movementDir = 1;
 
     // Text UI
     public TextMeshProUGUI distanceText;
     public TextMeshProUGUI elapsedTimeText;
+    public TextMeshProUGUI speedText;
+    public TextMeshProUGUI scaleText;
     public Slider movementSpeedSlider;
     public Slider distanceScalingSlider;
-    public float maxVisibleDistance = 10;
+    public float maxVisibleDistance = 50;
     public Vector3 lastRendererPosition;
     public bool starsMoving = false;
     private float yearsPassed = 0;
@@ -80,9 +88,10 @@ public class CreateStars : MonoBehaviour
     // public Vector3 moveDirection = Vector3.forward; // Adjust the direction of movement
     // private List<GameObject> activeStars = new List<GameObject>();
     // public float maxDistanceLightYears = 100;
-
+    
     void Start()
     {
+        InvokeRepeating("billBoardFix", 0f, 2f);
         constellationSet = new GameObject("constellations");
         lastRendererPosition = camera_CAVE.transform.position;
         constellationFiles.Add(ModernFile);
@@ -91,6 +100,7 @@ public class CreateStars : MonoBehaviour
         constellationFiles.Add(InuitFile);
         constellationFiles.Add(EgyptianFile);
         constellationFiles.Add(SamoanFile);
+        canvas.transform.GetChild(2).gameObject.SetActive(false);
         // startTime = Time.time;
         ParseStarData();
         // UpdateStarVisibility();
@@ -99,17 +109,42 @@ public class CreateStars : MonoBehaviour
         ParseExoplanetData();
         initialUserPosition = camera_CAVE.transform.position;
         initialUserRotation = camera_CAVE.transform.rotation;
+        initialMenuPosition = menu_CAVE.transform.position;
+        initialMenuRotation = menu_CAVE.transform.rotation;
+        canvas.transform.GetChild(3).gameObject.SetActive(true);
+        canvas.transform.GetChild(4).gameObject.SetActive(false);
         // RecolorStarsBasedOnExoplanets();
     }
+
+    void billBoardFix()
+    {
+        foreach (StarData starData in stars)
+        {
+            float starDistance = Vector3.Distance(starData.starObject.transform.position, camera_CAVE.transform.position);
+            if (starDistance <= maxVisibleDistance)
+            {
+                // to get rid of billboard effect, but it needs to be updated based on camera movement for each star
+                starData.starObject.transform.LookAt(camera_CAVE.transform.position);
+            }
+        }
+        // menu_CAVE.transform.position = initialMenuPosition;
+        // menu_CAVE.transform.rotation = initialMenuRotation;
+    }
+    
     void Update()
     {
         // Update Distance text on screen 
         float userDistance = Vector3.Distance(camera_CAVE.transform.position, initialUserPosition);
         distanceText.text = "Distance from Sol: " + userDistance.ToString("F2") + " parsecs";
+        if (userDistance > maxVisibleDistance)
+        {
+            maxVisibleDistance += 2;
+        }
 
-        if (Vector3.Distance(camera_CAVE.transform.position, lastRendererPosition) >= 10)
+        if (Vector3.Distance(camera_CAVE.transform.position, lastRendererPosition) >= 8)
         {
             lastRendererPosition = camera_CAVE.transform.position;
+
             foreach (StarData starData in stars)
             {
                 float starDistance = Vector3.Distance(starData.starObject.transform.position, camera_CAVE.transform.position);
@@ -125,22 +160,17 @@ public class CreateStars : MonoBehaviour
                 // to get rid of billboard effect, but it needs to be updated based on camera movement for each star
                 // starData.starObject.transform.LookAt(camera_CAVE.transform.position);
             }
-            
         }
 
         // Update to move stars
-        if(starsMoving){
-            // if(!isStarMovementPaused){
-            //     float elapsedTime = Time.time - startTime - pausedTime;
-            //     UpdateElapsedTimeText(elapsedTime);
-            // }
-            // speed = setMovementSliderValue();
+        if (starsMoving)
+        {
             setMovementSliderValue();
             foreach (StarData starData in stars)
             {
                 starData.position += movementDir * starData.velocity * speed * Time.deltaTime;
                 // If stars are visible, move them
-                if(starData.distance < maxVisibleDistance)
+                if (starData.distance < maxVisibleDistance)
                     starData.starObject.transform.position = starData.position;
 
             }
@@ -152,26 +182,28 @@ public class CreateStars : MonoBehaviour
         }
     }
 
-    public void setMovementSliderValue(){
+    public void setMovementSliderValue()
+    {
         if (movementSpeedSlider != null)
         {
-        //  Debug.Log("Slider value: " + movementSpeedSlider.value);
-            switch(movementSpeedSlider.value){
+            //  Debug.Log("Slider value: " + movementSpeedSlider.value);
+            switch (movementSpeedSlider.value)
+            {
                 case 1:
-                    speed = 100;
-                    break;
-                case 2:
                     speed = 500;
                     break;
-                case 3:
+                case 2:
                     speed = 1000;
                     break;
-                case 4:
+                case 3:
                     speed = 1500;
                     break;
-                case 5:
+                case 4:
                     speed = 2000;
                     break;
+                // case 5:
+                //     speed = 2000;
+                //     break;
                 default:
                     speed = 500;
                     break;
@@ -200,25 +232,27 @@ public class CreateStars : MonoBehaviour
         maxVisibleDistance = distance; // Update the maximum visible distance
     }
 
-    public void setDistanceScale(){
+    public void setDistanceScale()
+    {
         if (distanceScalingSlider != null)
         {
-        //  Debug.Log("Slider value: " + movementSpeedSlider.value);
-            switch(distanceScalingSlider.value){
+            //  Debug.Log("Slider value: " + movementSpeedSlider.value);
+            switch (distanceScalingSlider.value)
+            {
                 case 1:
-                    UpdateStarDistances(10);
-                    break;
-                case 2:
                     UpdateStarDistances(30);
                     break;
-                case 3:
+                case 2:
                     UpdateStarDistances(50);
                     break;
-                case 4:
+                case 3:
                     UpdateStarDistances(70);
                     break;
+                case 4:
+                    UpdateStarDistances(100);
+                    break;
                 default:
-                    UpdateStarDistances(10);
+                    UpdateStarDistances(30);
                     break;
             }
         }
@@ -303,32 +337,34 @@ public class CreateStars : MonoBehaviour
             Color starColor = Color.white;
             switch (starData.spect[0])
             {
-                case 'O':
-                    starColor = Color.blue;
-                    break;
-                case 'B':
-                    starColor = new Color(170f / 255f, 191f / 255f, 255f / 255f, 1f);
-                    break;
-                case 'A':
-                    starColor = Color.white;
-                    break;
-                case 'F':
-                    starColor = new Color(248f / 255f, 247f / 255f, 255f / 255f, 1f);
-                    break;
-                case 'G':
-                    starColor = new Color(255f / 255f, 244f / 255f, 234f / 255f, 1f);
-                    break;
-                case 'K':
-                    starColor = new Color(255f / 255f, 210f / 255f, 161f / 255f, 1f);
-                    break;
-                case 'M':
-                    starColor = new Color(255f / 255f, 204f / 255f, 111f / 255f, 1f);
-                    break;
+            case 'O':
+                starColor = new Color(155f / 255f, 176f / 255f, 1f); // Blue
+                break;
+            case 'B':
+                starColor = new Color(170f / 255f, 191f / 255f, 255f / 255f); // Bluish-white
+                break;
+            case 'A':
+                starColor = new Color(0.95f, 0.97f, 1f); // Pale white
+                break;
+            case 'F':
+                starColor = new Color(0.99f, 0.98f, 0.94f); // Creamy-white
+                break;
+            case 'G':
+                starColor = new Color(1f, 0.96f, 0.88f); // Light yellow
+                break;
+            case 'K':
+                starColor = new Color(1f, 0.85f, 0.6f); // Light orange
+                break;
+            case 'M':
+                starColor = new Color(1f, 0.75f, 0.6f); // Light red
+                break;
             }
+
             starData.starObject.GetComponent<Renderer>().material.color = starColor;
             originalStarColors.Add(starData.hip, starColor);
+            starData.initialPosition = new Vector3(starData.position.x, starData.position.y, starData.position.z);
 
-            if (starData.distance <= maxVisibleDistance)
+            if (starData.distance < maxVisibleDistance)
             {
                 starData.starObject.SetActive(true);
             }
@@ -336,10 +372,9 @@ public class CreateStars : MonoBehaviour
             {
                 starData.starObject.SetActive(false);
             }
-            // }
         }
     }
-    
+
     void ParseConstellationData(int index)
     {
         if (constellationFiles == null)
@@ -348,34 +383,15 @@ public class CreateStars : MonoBehaviour
             return;
         }
 
-        // if (constellationLines != null)
-        // {
-        //     // Destroy each ConstellationLine object in the list
-        //     foreach (ConstellationLine line in constellationLines)
-        //     {
-        //         Destroy(line.gameObject);
-        //     }
+    ClearConstellationLines();
 
-        //     // Clear the list
-        //     constellationLines.Clear();
-        // }
-        
-        // Clear the existing constellation lines
-        ClearConstellationLines();
-
-        // filename = toggleConstellations();
-        
-        // private TextAsset selectedFile = constellationFiles[index];
-        
-        string[] lines = constellationFiles[index].text.Split('\n');
-        // string[] lines = constellationFiles[index].text.Split('\n');
-
+    string[] lines = constellationFiles[index].text.Split('\n');
 
         foreach (string line in lines)
         {
             string[] values = line.Trim().Split(' ');
 
-            // GameObject constellationName = new GameObject();
+            // GameObject constellationGem= new GameObject();
             // constellationName.name = values[0];
             // constellationName.transform.parent = constellationSet.transform;
 
@@ -406,7 +422,6 @@ public class CreateStars : MonoBehaviour
 
         // GameObject constellationLineObject = new GameObject(lineName);
         constellationLineObject.transform.parent = constellationSet.transform;
-
 
         lineRenderer.positionCount = 2;
         lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
@@ -488,6 +503,16 @@ public class CreateStars : MonoBehaviour
     }
     public void ChangeStarColors()
     {
+        if (!canvas.transform.GetChild(4).gameObject.activeSelf)
+        {
+            canvas.transform.GetChild(3).gameObject.SetActive(false);
+            canvas.transform.GetChild(4).gameObject.SetActive(true);
+        }
+        else
+        {
+            canvas.transform.GetChild(4).gameObject.SetActive(false);
+            canvas.transform.GetChild(3).gameObject.SetActive(true);
+        }
         foreach (StarData starData in stars)
         {
             if (!colorChanged)
@@ -531,35 +556,47 @@ public class CreateStars : MonoBehaviour
         switch (numExoplanets)
         {
             case 1:
-                return Color.blue; // Example color for 1 exoplanet
+                return Color.blue; 
             case 2:
-                return Color.green; // Example color for 2 exoplanets
+                return Color.green;
             case 3:
-                return Color.yellow; // Example color for 3 exoplanets
+                return Color.yellow; 
             case 4:
-                return Color.red; // Example color for 4 exoplanets
+                return Color.red;
             default:
-                return Color.magenta; // Example color for 5+ exoplanets
+                return Color.magenta; 
         }
     }
 
     public void ResetLocationAndOrientation()
     {
+        // Reset camera position and rotation
         camera_CAVE.transform.position = initialUserPosition;
         camera_CAVE.transform.rotation = initialUserRotation;
-        // yearsPassed = 0;
-        
-    }
-    public void forwardStarMovement(){
-        // movementDir = 1;
-        starsMoving = !starsMoving;
-        
-    }
 
-    // public void backwardStarMovement(){
-    //     movementDir = -1; 
-    //     starsMoving = !starsMoving;
-    // }
+        // Reset movement direction and star movement state
+        movementDir = 1;
+        starsMoving = false;
+
+        // Reset elapsed time
+        yearsPassed = 0;
+
+        // Reset star positions
+        foreach (StarData starData in stars)
+        {
+            starData.starObject.transform.position = starData.initialPosition;
+        }
+    }
+    public void forwardStarMovement()
+    {
+        movementDir = 1;
+        starsMoving = !starsMoving;
+    }
+    public void backwardStarMovement()
+    {
+        movementDir = -1;
+        starsMoving = !starsMoving;
+    }
 
     void ClearConstellationLines()
     {
@@ -573,23 +610,11 @@ public class CreateStars : MonoBehaviour
 
     public void toggleConstellations(GameObject gameObject)
     {
-        // Destroy(constellationLines);
-        // constellationLines = new List<ConstellationLine>();
-        // Debug.Log(gameObject.name);
-        // Check if there's an existing constellation set
-        // if (constellationSet != null)
-        // {
-        //     // Destroy each GameObject in the constellation set
-        //     foreach (Transform child in constellationSet.transform)
-        //     {
-        //         Destroy(child.gameObject);
-        //     }
-        // }
         ClearConstellationLines();
 
-        switch(gameObject.name){
+        switch (gameObject.name)
+        {
             case "ModernFile":
-
                 ParseConstellationData(0);
                 break;
             case "IndianFile":
@@ -610,6 +635,51 @@ public class CreateStars : MonoBehaviour
             default:
                 break;
         }
+    }
 
+    public void showSingleConstellation(){
+        if (canvas.transform.GetChild(2).gameObject.activeSelf)
+        {
+            canvas.transform.GetChild(2).gameObject.SetActive(false);
+            ParseConstellationData(0);
+            return;
+        }
+
+        // Reset camera position and rotation
+        camera_CAVE.transform.position = initialUserPosition;
+        camera_CAVE.transform.rotation = initialUserRotation;
+
+
+        ClearConstellationLines();
+
+        string[] lines = constellationFiles[0].text.Split('\n');
+        foreach (string line in lines)
+        {
+            string[] values = line.Trim().Split(' ');
+
+            if(values[0] == "UMi"){
+                // Store pairs of values starting from index 2
+                for (int i = 2; i < values.Length; i += 2)
+                {
+                    int hip1 = int.Parse(values[i]);
+                    int hip2 = int.Parse(values[i + 1]);
+
+                    if (starDictionary.ContainsKey(hip1) && starDictionary.ContainsKey(hip2))
+                    {
+                        StarData starData1 = starDictionary[hip1];
+                        StarData starData2 = starDictionary[hip2];
+
+                        ConstellationLine constellationLine = CreateConstellationLine(starData1, starData2);
+                        constellationLines.Add(constellationLine); // Add ConstellationLine object instead of LineRenderer
+                    }
+                }
+            }
+            // GameObject constellationGem= new GameObject();
+            // constellationName.name = values[0];
+            // constellationName.transform.parent = constellationSet.transform;
+        }
+
+        canvas.transform.GetChild(2).gameObject.SetActive(true);
+        // statusText.text = "
     }
 }

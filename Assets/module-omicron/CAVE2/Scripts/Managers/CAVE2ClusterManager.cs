@@ -1,11 +1,11 @@
 ﻿/**************************************************************************************************
 * THE OMICRON PROJECT
  *-------------------------------------------------------------------------------------------------
- * Copyright 2010-2022		Electronic Visualization Laboratory, University of Illinois at Chicago
+ * Copyright 2010-2023		Electronic Visualization Laboratory, University of Illinois at Chicago
  * Authors:										
  *  Arthur Nishimoto		anishimoto42@gmail.com
  *-------------------------------------------------------------------------------------------------
- * Copyright (c) 2010-2022, Electronic Visualization Laboratory, University of Illinois at Chicago
+ * Copyright (c) 2010-2023, Electronic Visualization Laboratory, University of Illinois at Chicago
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without modification, are permitted 
  * provided that the following conditions are met:
@@ -62,12 +62,21 @@ public class CAVE2ClusterManager : MonoBehaviour
     float updateInterval = 2;
     float updateTimer;
 
+    Dictionary<int, CAVE2ClientInfo> cave2Clients = new Dictionary<int, CAVE2ClientInfo>();
+    Dictionary<string, int> cave2ClientNames = new Dictionary<string, int>();
+
     [Header("UI")]
     [SerializeField]
     Text currentHeadTrackerText = null;
 
     [SerializeField]
     Text currentHeadTrackerTransformText = null;
+
+    [SerializeField]
+    Button[] clientStatusButtons = null;
+
+    [SerializeField]
+    Text clientStatusText = null;
 
     [Header("Debug")]
     [SerializeField]
@@ -129,6 +138,8 @@ public class CAVE2ClusterManager : MonoBehaviour
         {
             SetCAVE2CameraPerspective();
         }
+
+        
     }
 
     // Update is called once per frame
@@ -603,7 +614,7 @@ public class CAVE2ClusterManager : MonoBehaviour
                         break;
                 }
             }
-            else if (CAVE2Manager.GetMachineName() == CAVE2.HEAD_NODE_NAME)
+            else if (CAVE2Manager.OnCAVE2Master())
             {
                 switch (myWindowPosID)
                 {
@@ -657,6 +668,8 @@ public class CAVE2ClusterManager : MonoBehaviour
     public static extern System.IntPtr FindWindow(System.String className, System.String windowName);
     [DllImport("user32.dll", EntryPoint = "GetActiveWindow")]
     public static extern IntPtr GetActiveWindow();
+    [DllImport("user32.dll", EntryPoint = "GetForegroundWindow")]
+    public static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll", EntryPoint = "SetWindowText")]
     public static extern bool SetWindowText(System.IntPtr hwnd, System.String lpString);
     [DllImport("user32.dll", EntryPoint = "GetWindowThreadProcessId")]
@@ -666,8 +679,37 @@ public class CAVE2ClusterManager : MonoBehaviour
     [DllImport("user32.dll")]
     public static extern bool GetWindowRect(IntPtr hwnd, ref Rect rectangle);
 
-    public static void SetPosition(int connID, int x, int y, int resX = 0, int resY = 0)
+    public static void SetPosition(int x, int y, int resX = 0, int resY = 0, bool borderless = true)
     {
+#if !UNITY_EDITOR
+        const int SWP_SHOWWINDOW = 0x0040;
+        const int GWL_STYLE = -16;
+        IntPtr windowPtr = GetActiveWindow();
+
+        // https://answers.unity.com/questions/946630/borderless-windows-in-standalone-builds.html
+        // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowlonga
+        // https://docs.microsoft.com/en-us/windows/win32/winmsg/window-styles
+
+        if (borderless)
+        {
+            // Sets window to borderless
+            SetWindowLongA(windowPtr, GWL_STYLE, 0x80000000L);
+        }
+        else
+        {
+            // Sets window with Title Bar
+            SetWindowLongA(windowPtr, GWL_STYLE, 0x00020000L);
+        }
+
+        //https://answers.unity.com/questions/13523/is-there-a-way-to-set-the-position-of-a-standalone.html?_ga=2.54933416.2072224053.1643235688-1899960085.1550115936
+        // Sets the window position and shows window (last flag required after setting style above)
+        SetWindowPos(windowPtr, 0, x, y, resX, resY, SWP_SHOWWINDOW);
+#endif
+    }
+
+    public static void SetPosition(int connID, int x, int y, int resX = 0, int resY = 0, bool borderless = true)
+    {
+#if !UNITY_EDITOR
         const int SWP_SHOWWINDOW = 0x0040;
         const int GWL_STYLE = -16;
         IntPtr windowPtr = FindWindow(null, Application.productName + " " + connID);
@@ -675,12 +717,22 @@ public class CAVE2ClusterManager : MonoBehaviour
         // https://answers.unity.com/questions/946630/borderless-windows-in-standalone-builds.html
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowlonga
         // https://docs.microsoft.com/en-us/windows/win32/winmsg/window-styles
-        // Sets window to borderless
-        SetWindowLongA(windowPtr, GWL_STYLE, 0x00800000L);
+
+        if (borderless)
+        {
+            // Sets window to borderless
+            SetWindowLongA(windowPtr, GWL_STYLE, 0x00800000L);
+        }
+        else
+        {
+            // Sets window with Title Bar
+            SetWindowLongA(windowPtr, GWL_STYLE, 0x00C00000L);
+        }
 
         //https://answers.unity.com/questions/13523/is-there-a-way-to-set-the-position-of-a-standalone.html?_ga=2.54933416.2072224053.1643235688-1899960085.1550115936
         // Sets the window position and shows window (last flag required after setting style above)
         SetWindowPos(windowPtr, 0, x, y, resX, resY, SWP_SHOWWINDOW);
+#endif
     }
 
     public static void SetWindowTitle(int connID, int oldID = 0)
@@ -702,6 +754,17 @@ public class CAVE2ClusterManager : MonoBehaviour
         SetWindowText(windowPtr, Application.productName + " " + connID);
     }
 
+    /**
+     * Sets the Window Title to 'Product Name [ProcessID]'
+     */
+    public static void SetWindowTitle()
+    {
+        IntPtr windowPtr = GetActiveWindow();
+
+        //Set the title text using the window handle.
+        SetWindowText(windowPtr, Application.productName + " " + Process.GetCurrentProcess().Id);
+    }
+
     public static int GetWindowProcessId(int connID)
     {
         int id = -1;
@@ -721,7 +784,12 @@ public class CAVE2ClusterManager : MonoBehaviour
     }
 
 #else
-    public static void SetPosition(int connID, int x, int y, int resX = 0, int resY = 0)
+    public static void SetPosition(int x, int y, int resX = 0, int resY = 0, bool borderless = true)
+    {
+        UnityEngine.Debug.LogWarning("Not implemented on current platform");
+    }
+
+    public static void SetPosition(int connID, int x, int y, int resX = 0, int resY = 0, bool borderless = true)
     {
         UnityEngine.Debug.LogWarning("Not implemented on current platform");
     }
@@ -731,11 +799,194 @@ public class CAVE2ClusterManager : MonoBehaviour
         UnityEngine.Debug.LogWarning("Not implemented on current platform");
     }
 
+    public static void SetWindowTitle()
+    {
+        UnityEngine.Debug.LogWarning("Not implemented on current platform");
+    }
+
     public static int GetWindowProcessId(int connID)
     {
-        int id = -1;
         UnityEngine.Debug.LogWarning("Not implemented on current platform");
-        return id;
+        return -1;
+    }
+
+    public static Rect GetWindowRect(string windowName)
+    {
+        UnityEngine.Debug.LogWarning("Not implemented on current platform");
+
+        return new Rect();
     }
 #endif
+
+    public void AddClient(int connID, string hostname, string deviceType)
+    {
+        string displayName = hostname;
+        int clientID = 0;
+        int nodeID = -1;
+        bool cave2Node = false;
+
+        if (hostname == "ORION-01")
+        {
+            nodeID = 0;
+            cave2Node = true;
+        }
+        else if (hostname == "ORION-02")
+        {
+            nodeID = 1;
+            cave2Node = true;
+        }
+        else if (hostname == "ORION-03")
+        {
+            nodeID = 2;
+            cave2Node = true;
+        }
+        else if (hostname == "ORION-04")
+        {
+            nodeID = 3;
+            cave2Node = true;
+        }
+        else if (hostname == "ORION-05")
+        {
+            nodeID = 4;
+            cave2Node = true;
+        }
+        else if (hostname == "ORION-06")
+        {
+            nodeID = 5;
+            cave2Node = true;
+        }
+
+        if (deviceType == "Android")
+        {
+            displayName = "ANDROID";
+            nodeID = 0;
+            clientID = 19;
+        }
+
+        if (deviceType == "WindowsEditor")
+        {
+            displayName = "LAPTOP";
+            nodeID = 0;
+            clientID = 20;
+        }
+
+        if (deviceType == "WSAPlayerARM")
+        {
+            displayName = "HOLOLENS-2";
+            nodeID = 0;
+            clientID = 18;
+        }
+
+        if (deviceType == "MetroPlayerX86")
+        {
+            displayName = "HOLOLENS-1";
+            nodeID = 0;
+            clientID = 19; // Replaces Android slot
+            cave2Node = false;
+        }
+
+        if (cave2Node)
+        {
+            if (cave2ClientNames.ContainsKey(hostname))
+            {
+                clientID = cave2ClientNames[hostname] + 1;
+                cave2ClientNames[hostname] = clientID;
+            }
+            else
+            {
+                cave2ClientNames.Add(hostname, 0);
+            }
+        }
+
+        int buttonID = (nodeID * 3) + clientID;
+
+        UnityEngine.Debug.Log("Client connected: " + connID + " " + hostname);
+        if(cave2Clients.ContainsKey(connID))
+        {
+            CAVE2ClientInfo clientInfo = cave2Clients[connID];
+            clientInfo.connectTime = Time.time;
+            clientInfo.connected = true;
+            clientInfo.reconnects++;
+
+            if (buttonID >= 0 && buttonID < clientStatusButtons.Length)
+            {
+                clientInfo.assignedButton = clientStatusButtons[buttonID];
+
+                clientInfo.assignedButton.onClick.RemoveAllListeners();
+                clientInfo.assignedButton.onClick.AddListener(delegate { ShowClientInfoToUI(connID); });
+                clientInfo.assignedButton.GetComponent<Image>().color = Color.yellow;
+                clientInfo.assignedButton.GetComponentInChildren<Text>().text = displayName + " " + connID;
+            }
+            else
+            {
+                UnityEngine.Debug.LogWarning("Client button index " + buttonID + " is not assigned!");
+            }
+            cave2Clients[connID] = clientInfo;
+        }
+        else
+        {
+            CAVE2ClientInfo clientInfo = new CAVE2ClientInfo();
+            clientInfo.connectTime = Time.time;
+            clientInfo.connected = true;
+            clientInfo.displayName = displayName;
+            clientInfo.hostName = hostname;
+            clientInfo.connID = connID;
+
+            if (buttonID >= 0 && buttonID < clientStatusButtons.Length)
+            {
+                clientInfo.assignedButton = clientStatusButtons[buttonID];
+
+                clientInfo.assignedButton.GetComponent<Image>().color = Color.green;
+                clientInfo.assignedButton.GetComponentInChildren<Text>().text = displayName + " " + connID;
+                clientInfo.assignedButton.onClick.AddListener(delegate { ShowClientInfoToUI(connID); });
+            }
+            else
+            {
+                UnityEngine.Debug.LogWarning("Client button index " + buttonID + " is not assigned!");
+            }
+
+            cave2Clients.Add(connID, clientInfo);
+        }
+    }
+
+    public void RemoveClient(int connID)
+    {
+        UnityEngine.Debug.Log("Client Disconneced: " + connID);
+
+        if (cave2Clients.ContainsKey(connID))
+        {
+            CAVE2ClientInfo clientInfo = cave2Clients[connID];
+            clientInfo.disconnectTime = Time.time;
+            clientInfo.connected = false;
+            clientInfo.assignedButton.GetComponent<Image>().color = Color.red;
+        }
+    }
+
+    public void ShowClientInfoToUI(int connID)
+    {
+        if (cave2Clients.ContainsKey(connID))
+        {
+            CAVE2ClientInfo clientInfo = cave2Clients[connID];
+
+            clientStatusText.text = "Client: '" + clientInfo.displayName + " " + clientInfo.connID + "'" + "\n";
+            clientStatusText.text += (clientInfo.connected ? "CONNECTED" : "NOT CONNECTED") + "\n";
+            clientStatusText.text += "Hostname: " + clientInfo.hostName + "\n";
+            clientStatusText.text += "ConnID: " + clientInfo.connID + "\n";
+            clientStatusText.text += "Connect Time: " + clientInfo.connectTime + "\n";
+            clientStatusText.text += "Disconnect Time: " + clientInfo.disconnectTime + "\n";
+            clientStatusText.text += "Reconnects: " + clientInfo.reconnects + "\n";
+        }
+    }
+}
+
+public class CAVE2ClientInfo
+{
+    public int connID;
+    public string hostName;
+    public string displayName;
+    public float connectTime;
+    public float disconnectTime;
+    public bool connected;
+    public Button assignedButton;
+    public int reconnects;
 }

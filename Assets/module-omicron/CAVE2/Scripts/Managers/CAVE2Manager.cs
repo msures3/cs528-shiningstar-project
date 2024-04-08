@@ -1,11 +1,11 @@
 ﻿/**************************************************************************************************
 * THE OMICRON PROJECT
  *-------------------------------------------------------------------------------------------------
- * Copyright 2010-2022		Electronic Visualization Laboratory, University of Illinois at Chicago
+ * Copyright 2010-2023		Electronic Visualization Laboratory, University of Illinois at Chicago
  * Authors:										
  *  Arthur Nishimoto		anishimoto42@gmail.com
  *-------------------------------------------------------------------------------------------------
- * Copyright (c) 2010-2022, Electronic Visualization Laboratory, University of Illinois at Chicago
+ * Copyright (c) 2010-2023, Electronic Visualization Laboratory, University of Illinois at Chicago
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without modification, are permitted 
  * provided that the following conditions are met:
@@ -28,10 +28,14 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
+using static OmicronManager;
+using System.IO;
 
 public class CAVE2 : MonoBehaviour
 {
-    public static string HEAD_NODE_NAME = "ORION-WIN";
+    public static string HEAD_NODE_NAME = "CAVE2MASTER";
+    public static string HEAD_NODE_NAME_ALT = "ORION-WIN";
     public static string DISPLAY_NODE_NAME = "ORION";
 
     static float CAVE2_RADIUS = 3.240f;
@@ -742,6 +746,9 @@ static CAVE2Manager CAVE2Manager_Instance;
     public Vector3 simulatorWandPosition = new Vector3(0.16f, 1.43f, 0.4f);
     public Vector3 simulatorWandRotation = new Vector3(0.0f, 0.0f, 0.0f);
 
+    public Vector3 simulatorWandPositionOffset = new Vector3(0.0f, 0.0f, 0.0f);
+    public Vector3 simulatorWandRotationOffset = new Vector3(0.0f, 0.0f, 0.0f);
+
     public enum TrackerEmulated { CAVE, Head, Wand };
     public enum TrackerEmulationMode { Pointer, Translate, Rotate, TranslateForward, TranslateVertical, RotatePitchYaw, RotateRoll };
     // string[] trackerEmuStrings = { "CAVE", "Head", "Wand1" };
@@ -795,8 +802,9 @@ static CAVE2Manager CAVE2Manager_Instance;
         machineName = GetMachineName();
         Debug.Log(this.GetType().Name + ">\t initialized on " + machineName);
 
-        Random.InitState(1138);   
+        UnityEngine.Random.InitState(1138);
     }
+
     void Start()
     {
         Init();
@@ -831,6 +839,36 @@ static CAVE2Manager CAVE2Manager_Instance;
                 // Enable mouse cursor or head node
                 Cursor.visible = true;
             }
+        }
+    }
+
+    void ConfigurationLoaded(DefaultConfig config)
+    {
+        ClusterConfig cConfig = ConfigurationManager.loadedConfig.clusterConfig;
+        if (cConfig.headNodeName.Length > 0)
+        {
+            CAVE2.HEAD_NODE_NAME = cConfig.headNodeName;
+            Debug.Log("Config: Using '" + CAVE2.HEAD_NODE_NAME + "' as head node machine name");
+        }
+        if (cConfig.displayNodeName.Length > 0)
+        {
+            CAVE2.DISPLAY_NODE_NAME = cConfig.displayNodeName;
+            Debug.Log("Config: Using '" + CAVE2.DISPLAY_NODE_NAME + "' as display node machine name");
+        }
+    }
+
+    void CAVE2ConfigurationLoaded(DefaultConfig config)
+    {
+        ClusterConfig cConfig = ConfigurationManager.loadedConfig.clusterConfig;
+        if (cConfig.headNodeName.Length > 0)
+        {
+            CAVE2.HEAD_NODE_NAME = cConfig.headNodeName;
+            Debug.Log("Config: Using '" + CAVE2.HEAD_NODE_NAME + "' as head node machine name");
+        }
+        if (cConfig.displayNodeName.Length > 0)
+        {
+            CAVE2.DISPLAY_NODE_NAME = cConfig.displayNodeName;
+            Debug.Log("Config: Using '" + CAVE2.DISPLAY_NODE_NAME + "' as display node machine name");
         }
     }
 
@@ -1135,7 +1173,7 @@ static CAVE2Manager CAVE2Manager_Instance;
             return true;
 
         machineName = GetMachineName();
-        if (machineName.Contains(CAVE2.HEAD_NODE_NAME) )
+        if (machineName.Contains(CAVE2.HEAD_NODE_NAME) || machineName.Contains(CAVE2.HEAD_NODE_NAME_ALT))
         {
             return true;
         }

@@ -13,4 +13,5 @@ public class StarData
     public string spect;
     public int sy_pnum; // Number of known planets
     public GameObject starObject;
+    public Vector3 initialPosition; // Store the initial position of the star
 }

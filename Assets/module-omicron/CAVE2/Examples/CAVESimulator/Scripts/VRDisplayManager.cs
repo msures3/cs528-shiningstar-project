@@ -4,13 +4,13 @@ using System.Collections;
 public class VRDisplayManager : MonoBehaviour {
 
     [SerializeField]
-    Transform headTrackedUser;
+    Transform headTrackedUser = null;
 
     [SerializeField]
-    Transform headTrackedUserLeftEye;
+    Transform headTrackedUserLeftEye = null;
 
     [SerializeField]
-    Transform headTrackedUserRightEye;
+    Transform headTrackedUserRightEye = null;
 
     public Transform virtualHead;
     public float displayAngularOffset = 1;
@@ -26,6 +26,17 @@ public class VRDisplayManager : MonoBehaviour {
 
     [SerializeField]
     bool regenerateDisplays;
+
+    [SerializeField]
+    public bool alignmentDebugDisplays;
+
+    [SerializeField]
+    bool disableAlignmentDebugDisplay;
+
+    [Header("UI")]
+    [SerializeField]
+    UnityEngine.UI.Button alignmentDebugButton = null;
+
 
     private void Update()
     {
@@ -48,8 +59,17 @@ public class VRDisplayManager : MonoBehaviour {
 
         if(regenerateDisplays)
         {
-            GetComponentInChildren<ScreenConfigCalc>().RegenerateDisplayWall();
+            ScreenConfigCalc[] screenCalcs = GetComponentsInChildren<ScreenConfigCalc>();
+            foreach(ScreenConfigCalc screenConfig in screenCalcs)
+            {
+                screenConfig.RegenerateDisplayWall();
+            }
             regenerateDisplays = false;
+        }
+
+        if (alignmentDebugButton)
+        {
+            alignmentDebugButton.image.color = alignmentDebugDisplays ? Color.green : Color.white;
         }
     }
 
